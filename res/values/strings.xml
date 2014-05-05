@@ -2,7 +2,27 @@
 <resources>
 
     <string name="app_name">Comicfile Downloader</string>
-    <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
+    <string-array name="testServerNameList">
+        <item >Server1</item>
+        <item >Server2</item>
+        <item >Server3</item>
+        <item >Server4</item>
+        <item >Server5</item>
+        <item >Server6</item>
+        <item >Server7</item>
+        <item >Server8</item>
+        <item >Server9</item>
+        <item >Server10</item>
+        <item >Server11</item>
+        <item >Server12</item>
+        <item >Server13</item>
+        <item >Server14</item>
+        <item >Server15</item>
+    </string-array>
+    <string name="servertype_http">HTTP Server</string>
+    <string name="tooltip_reorder">Reorder</string>
+    <string name="text_add">Add</string>
+    <string name="tooptip_add">Add a new server</string>
 
 </resources>
