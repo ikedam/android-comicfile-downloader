@@ -29,6 +29,7 @@ import java.util.List;
 import android.content.Context;
 import android.view.DragEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.View.DragShadowBuilder;
 import android.view.View.OnDragListener;
 import android.widget.AbsListView.OnScrollListener;
@@ -150,7 +151,7 @@ public abstract class DragSortableArrayAdapter<T> extends ArrayAdapter<T> implem
      */
     protected boolean isDragging(int position)
     {
-        return isDragging() && position == getDraggingTo();
+        return isDragging() && position == getDraggingFrom();
     }
     
     public DragSortableArrayAdapter(Context context, int resource,
@@ -177,10 +178,6 @@ public abstract class DragSortableArrayAdapter<T> extends ArrayAdapter<T> implem
             {
                 break;
             }
-            T item = getItem(fromPosition);
-            remove(item);
-            insert(item, toPosition);
-            notifyDataSetChanged();
             return true;
         }
         case SwapDropped:
@@ -190,11 +187,6 @@ public abstract class DragSortableArrayAdapter<T> extends ArrayAdapter<T> implem
         }
         case SwapCanceled:
         {
-            T item = getItem(fromPosition);
-            remove(item);
-            insert(item, toPosition);
-            notifyDataSetChanged();
-            listView.invalidate();
             return true;
         }
         }
@@ -208,6 +200,9 @@ public abstract class DragSortableArrayAdapter<T> extends ArrayAdapter<T> implem
     
     protected void onSorted(int fromPosition, int toPosition)
     {
+        T item = getItem(fromPosition);
+        remove(item);
+        insert(item, toPosition);
     }
     
     /**
@@ -221,6 +216,41 @@ public abstract class DragSortableArrayAdapter<T> extends ArrayAdapter<T> implem
     public void onScroll(AbsListView view, int firstVisibleItem,
             int visibleItemCount, int totalItemCount)
     {
+    }
+    
+    @Override
+    public final View getView(int position, View convertView, ViewGroup parent)
+    {
+        position = getPositionBeforeDrag(position);
+        return getViewBeforeDrag(position, convertView, parent);
+    }
+    
+    private int getPositionBeforeDrag(int position)
+    {
+        if(!isDragging())
+        {
+            return position;
+        }
+        if(position == getDraggingTo())
+        {
+            return getDraggingFrom();
+        }
+        
+        if(position > getDraggingTo())
+        {
+            --position;
+        }
+        if(position >= getDraggingFrom())
+        {
+            ++position;
+        }
+        return position;
+    }
+
+
+    public View getViewBeforeDrag(int position, View convertView, ViewGroup parent)
+    {
+        return super.getView(position, convertView, parent);
     }
     
     /**
@@ -304,6 +334,7 @@ public abstract class DragSortableArrayAdapter<T> extends ArrayAdapter<T> implem
         setDragging(true);
         setDraggingFrom(position);
         setDraggingTo(position);
+        listView.invalidateViews();
         
         return true;
     }
@@ -321,9 +352,10 @@ public abstract class DragSortableArrayAdapter<T> extends ArrayAdapter<T> implem
             return false;
         }
         
-        if(swapItem(getDraggingTo(), position, SwapType.SwapDragging))
+        if(swapItem(getDraggingFrom(), position, SwapType.SwapDragging))
         {
             setDraggingTo(position);
+            notifyDataSetChanged();
         }
         return true;
     }
@@ -343,9 +375,10 @@ public abstract class DragSortableArrayAdapter<T> extends ArrayAdapter<T> implem
         
         if(position != getDraggingTo())
         {
-            if(swapItem(getDraggingTo(), position, SwapType.SwapDragging))
+            if(swapItem(getDraggingFrom(), position, SwapType.SwapDragging))
             {
                 setDraggingTo(position);
+                notifyDataSetChanged();
             }
         }
         return true;
@@ -360,10 +393,14 @@ public abstract class DragSortableArrayAdapter<T> extends ArrayAdapter<T> implem
         if(event.getResult())
         {
             swapItem(getDraggingFrom(), getDraggingTo(), SwapType.SwapDropped);
+            notifyDataSetChanged();
+            listView.invalidateViews();
         }
         else
         {
-            swapItem(getDraggingTo(), getDraggingFrom(), SwapType.SwapCanceled);
+            swapItem(getDraggingFrom(), getDraggingTo(), SwapType.SwapCanceled);
+            notifyDataSetChanged();
+            listView.invalidateViews();
         }
         
         setDragging(false);

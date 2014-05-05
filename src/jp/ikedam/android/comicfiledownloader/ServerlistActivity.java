@@ -1,13 +1,23 @@
 package jp.ikedam.android.comicfiledownloader;
 
+import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Callable;
 
+import com.j256.ormlite.dao.Dao;
+import com.j256.ormlite.misc.TransactionManager;
+import com.j256.ormlite.stmt.UpdateBuilder;
+import com.j256.ormlite.stmt.Where;
+
+import jp.ikedam.android.comicfiledownloader.db.DatabaseHelper;
 import jp.ikedam.android.comicfiledownloader.model.ServerInfo;
 import android.app.Activity;
 import android.app.ListFragment;
 import android.content.Context;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.GestureDetector.SimpleOnGestureListener;
 import android.view.LayoutInflater;
@@ -17,6 +27,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnTouchListener;
 import android.view.ViewGroup;
+import android.widget.ListView;
 
 public class ServerlistActivity extends Activity
 {
@@ -57,26 +68,111 @@ public class ServerlistActivity extends Activity
         return super.onOptionsItemSelected(item);
     }
     
+    
+    public static interface ServerlistItemListener
+    {
+        void onSelected(ServerInfo item);
+        void onReordered(List<ServerInfo> reordered);
+        void onAdd();
+    }
+    
     /**
      * A placeholder fragment containing a simple view.
      */
-    public static class ServerlistFragment extends ListFragment
+    public static class ServerlistFragment extends ListFragment implements ServerlistItemListener
     {
+        private static String TAG = ServerlistFragment.class.getSimpleName();
+        
         public ServerlistFragment()
         {
         }
         
         protected List<ServerInfo> loadServerInfoList()
         {
-            String[] serverNameList = getResources().getStringArray(R.array.testServerNameList);
-            List<ServerInfo> serverInfoList = new ArrayList<ServerInfo>(serverNameList.length);
-            for(String serverName: serverNameList)
+            List<ServerInfo> serverInfoList = Collections.<ServerInfo>emptyList();
+            final DatabaseHelper helper = new DatabaseHelper(getActivity());
+            try
             {
-                ServerInfo info = new ServerInfo();
-                info.setServerName(serverName);
-                serverInfoList.add(info);
+                Dao<ServerInfo, ?> dao = helper.getDao(ServerInfo.class);
+                serverInfoList = dao.query(dao.queryBuilder().orderBy("sort_order", true).prepare());
+            }
+            catch(SQLException e)
+            {
+                Log.e(TAG, "Failed to query server_info", e);
+            }
+            
+            if(serverInfoList == null || serverInfoList.isEmpty())
+            {
+                try
+                {
+                    serverInfoList = TransactionManager.callInTransaction(helper.getConnectionSource(), new Callable<List<ServerInfo>>(){
+                        @Override
+                        public List<ServerInfo> call() throws Exception
+                        {
+                            String[] serverNameList = getResources().getStringArray(R.array.testServerNameList);
+                            List<ServerInfo> serverInfoList = new ArrayList<ServerInfo>(serverNameList.length);
+                            Dao<ServerInfo, ?> dao = helper.getDao(ServerInfo.class);
+                            int index = 0;
+                            for(String serverName: serverNameList)
+                            {
+                                ServerInfo info = new ServerInfo();
+                                info.setSortOrder(++index);
+                                info.setServerName(serverName);
+                                info.setServerUri(serverName);
+                                serverInfoList.add(info);
+                                
+                                dao.create(info);
+                            }
+                            return serverInfoList;
+                        }
+                    });
+                }
+                catch(SQLException e)
+                {
+                    Log.e(TAG, "Failed to query server_info", e);
+                }
             }
             return serverInfoList;
+        }
+        
+        @Override
+        public void onSelected(ServerInfo item)
+        {
+            // TODO Auto-generated method stub
+        }
+        
+        @Override
+        public void onAdd()
+        {
+            // TODO Auto-generated method stub
+            
+        }
+        
+        @Override
+        public void onReordered(final List<ServerInfo> reordered)
+        {
+            final DatabaseHelper helper = new DatabaseHelper(getActivity());
+            
+            try
+            {
+                TransactionManager.callInTransaction(helper.getConnectionSource(), new Callable<Void>(){
+                    @Override
+                    public Void call() throws Exception
+                    {
+                        Dao<ServerInfo, Integer> dao = helper.getDao(ServerInfo.class);
+                        for(ServerInfo info: reordered)
+                        {
+                            dao.update(info);
+                        }
+                        
+                        return null;
+                    }
+                });
+            }
+            catch(SQLException e)
+            {
+                Log.e(TAG, "Failed to update server_info", e);
+            }
         }
         
         @Override
@@ -92,7 +188,9 @@ public class ServerlistActivity extends Activity
         @Override
         public void onActivityCreated(Bundle savedInstanceState)
         {
-            new ServerlistAdapter(getActivity(), loadServerInfoList()).setupFor(getListView());
+            ServerlistAdapter adapter = new ServerlistAdapter(getActivity(), loadServerInfoList());
+            adapter.setupFor(getListView());
+            adapter.setServerlistItemListener(this);
             
             super.onActivityCreated(savedInstanceState);
         }
@@ -133,9 +231,24 @@ public class ServerlistActivity extends Activity
                 Add,
             };
             
+            private ServerlistItemListener listener;
+            
+            /**
+             * @return the listener
+             */
+            public ServerlistItemListener getListener()
+            {
+                return listener;
+            }
+            
             public ServerlistAdapter(Context c, List<ServerInfo> serverInfoList)
             {
                 super(c, R.layout.item_serverlist, R.id.serverNameView, serverInfoList);
+            }
+            
+            public void setServerlistItemListener(ServerlistItemListener listener)
+            {
+                this.listener = listener;
             }
             
             /**
@@ -203,11 +316,11 @@ public class ServerlistActivity extends Activity
             public int getPosition(View view)
             {
                 Object pos = view.getTag();
-                return (pos != null && pos instanceof Integer)?(Integer)pos:-1;
+                return (pos != null && pos instanceof Integer)?(Integer)pos:ListView.INVALID_POSITION;
             }
             
             @Override
-            public View getView(int position, View convertView, ViewGroup parent)
+            public View getViewBeforeDrag(int position, View convertView, ViewGroup parent)
             {
                 View v = null;
                 if(position == getAddPosition())
@@ -239,7 +352,7 @@ public class ServerlistActivity extends Activity
             protected View getServerView(int position, View convertView,
                     ViewGroup parent)
             {
-                View view = super.getView(position, convertView, parent);
+                View view = super.getViewBeforeDrag(position, convertView, parent);
                 if(view != convertView)
                 {
                     // It's not reasonable to set listener every time.
@@ -266,17 +379,60 @@ public class ServerlistActivity extends Activity
             @Override
             protected void onSorted(int fromPosition, int toPosition)
             {
+                List<ServerInfo> reordered = null;
+                ServerInfo fromItem = getItem(fromPosition);
+                ServerInfo toItem = getItem(toPosition);
+                fromItem.setSortOrder(toItem.getSortOrder());
+                
+                if(fromPosition < toPosition)
+                {
+                    reordered = new ArrayList<ServerInfo>(toPosition - fromPosition + 1);
+                    for(int pos = fromPosition + 1; pos <= toPosition; ++pos)
+                    {
+                        ServerInfo item = getItem(pos);
+                        item.setSortOrder(item.getSortOrder() - 1);
+                        reordered.add(item);
+                    }
+                    reordered.add(fromItem);
+                }
+                else // toPosition < fromPosition
+                {
+                    reordered = new ArrayList<ServerInfo>(fromPosition - toPosition + 1);
+                    reordered.add(fromItem);
+                    for(int pos = toPosition; pos <= fromPosition - 1; ++pos)
+                    {
+                        ServerInfo item = getItem(pos);
+                        item.setSortOrder(item.getSortOrder() + 1);
+                        reordered.add(item);
+                    }
+                }
+                getListener().onReordered(reordered);
+                super.onSorted(fromPosition, toPosition);
             }
             
             protected boolean onSingleTapUp(View v, MotionEvent e)
             {
-                return false;
+                int position = getPosition(v);
+                if(position == ListView.INVALID_POSITION)
+                {
+                    return false;
+                }
+                
+                if(position == getAddPosition())
+                {
+                    getListener().onAdd();
+                    return true;
+                }
+                
+                getListener().onSelected(getItem(position));
+                
+                return true;
             }
             
             protected boolean onLongPress(View v, MotionEvent e)
             {
                 int position = getPosition(v);
-                if(position < 0 || position == getAddPosition())
+                if(position == ListView.INVALID_POSITION || position == getAddPosition())
                 {
                     return false;
                 }

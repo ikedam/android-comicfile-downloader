@@ -24,13 +24,43 @@
 
 package jp.ikedam.android.comicfiledownloader.model;
 
+import com.j256.ormlite.field.DatabaseField;
+import com.j256.ormlite.table.DatabaseTable;
+
 /**
  *
  */
+@DatabaseTable(tableName="server_info")
 public class ServerInfo
 {
+    @DatabaseField(generatedId=true)
+    private int id = -1;
+    
+    @DatabaseField(columnName="server_type", defaultValue="1")
+    private int serverType;
+    
+    @DatabaseField(columnName="server_name")
     private String serverName;
+    
+    @DatabaseField(columnName="server_uri")
     private String serverUri;
+    
+    @DatabaseField(canBeNull=true)
+    private String username;
+    
+    @DatabaseField(canBeNull=true)
+    private String password;
+    
+    @DatabaseField(columnName="sort_order", index=true)
+    private int sortOrder;
+    
+    /**
+     * @return the id
+     */
+    public int getId()
+    {
+        return id;
+    }
     
     /**
      * @return the serverName
@@ -62,6 +92,22 @@ public class ServerInfo
     public void setServerUri(String serverUri)
     {
         this.serverUri = serverUri;
+    }
+    
+    /**
+     * @return the sortOrder
+     */
+    public int getSortOrder()
+    {
+        return sortOrder;
+    }
+    
+    /**
+     * @param order the sort order to set
+     */
+    public void setSortOrder(int sortOrder)
+    {
+        this.sortOrder = sortOrder;
     }
     
     @Override
