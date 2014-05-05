@@ -7,15 +7,16 @@ import java.util.List;
 import java.util.concurrent.Callable;
 
 import com.j256.ormlite.dao.Dao;
+import com.j256.ormlite.dao.GenericRawResults;
 import com.j256.ormlite.misc.TransactionManager;
-import com.j256.ormlite.stmt.UpdateBuilder;
-import com.j256.ormlite.stmt.Where;
+import com.j256.ormlite.stmt.QueryBuilder;
 
 import jp.ikedam.android.comicfiledownloader.db.DatabaseHelper;
 import jp.ikedam.android.comicfiledownloader.model.ServerInfo;
 import android.app.Activity;
 import android.app.ListFragment;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.GestureDetector;
@@ -25,13 +26,13 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.view.View.OnTouchListener;
 import android.view.ViewGroup;
 import android.widget.ListView;
 
 public class ServerlistActivity extends Activity
 {
-    
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
@@ -74,6 +75,8 @@ public class ServerlistActivity extends Activity
         void onSelected(ServerInfo item);
         void onReordered(List<ServerInfo> reordered);
         void onAdd();
+        void onEdit(ServerInfo item);
+        void onDelete(ServerInfo item);
     }
     
     /**
@@ -82,6 +85,9 @@ public class ServerlistActivity extends Activity
     public static class ServerlistFragment extends ListFragment implements ServerlistItemListener
     {
         private static String TAG = ServerlistFragment.class.getSimpleName();
+        private static final int REQUESTCODE_SERVERINFO_ADD = 1;
+        private static final int REQUESTCODE_SERVERINFO_EDIT = 2;
+        private ServerlistAdapter adapter;
         
         public ServerlistFragment()
         {
@@ -101,6 +107,8 @@ public class ServerlistActivity extends Activity
                 Log.e(TAG, "Failed to query server_info", e);
             }
             
+            /*
+            // Debugging code
             if(serverInfoList == null || serverInfoList.isEmpty())
             {
                 try
@@ -132,7 +140,101 @@ public class ServerlistActivity extends Activity
                     Log.e(TAG, "Failed to query server_info", e);
                 }
             }
+            */
             return serverInfoList;
+        }
+        
+        @Override
+        public void onActivityResult(int requestCode, int resultCode, Intent data)
+        {
+            switch(requestCode)
+            {
+            case REQUESTCODE_SERVERINFO_ADD:
+            {
+                if(resultCode == ServerInfo.Intent.RESPONSECODE_OK)
+                {
+                    ServerInfo serverInfo = (ServerInfo)data.getSerializableExtra(ServerInfo.Intent.EXTRA);
+                    addServerInfo(serverInfo);
+                }
+                break;
+            }
+            case REQUESTCODE_SERVERINFO_EDIT:
+            {
+                if(resultCode == ServerInfo.Intent.RESPONSECODE_OK)
+                {
+                    ServerInfo serverInfo = (ServerInfo)data.getSerializableExtra(ServerInfo.Intent.EXTRA);
+                    updateServerInfo(serverInfo);
+                }
+                break;
+            }
+            }
+            super.onActivityResult(requestCode, resultCode, data);
+        }
+        
+        public void updateServerInfo(final ServerInfo serverInfo)
+        {
+            final DatabaseHelper helper = new DatabaseHelper(getActivity());
+            
+            try
+            {
+                TransactionManager.callInTransaction(helper.getConnectionSource(), new Callable<Void>(){
+                    @Override
+                    public Void call() throws Exception
+                    {
+                        Dao<ServerInfo, Integer> dao = helper.getDao(ServerInfo.class);
+                        dao.update(serverInfo);
+                        return null;
+                    }
+                });
+                int position = adapter.getPosition(serverInfo);
+                if(position != ListView.INVALID_POSITION)
+                {
+                    adapter.remove(serverInfo);
+                    adapter.insert(serverInfo, position);
+                    adapter.notifyDataSetChanged();
+                }
+            }
+            catch(SQLException e)
+            {
+                Log.e(TAG, "Failed to update server_info", e);
+            }
+        }
+        
+        public void addServerInfo(final ServerInfo serverInfo)
+        {
+            final DatabaseHelper helper = new DatabaseHelper(getActivity());
+            
+            try
+            {
+                TransactionManager.callInTransaction(helper.getConnectionSource(), new Callable<Void>(){
+                    @Override
+                    public Void call() throws Exception
+                    {
+                        Dao<ServerInfo, Integer> dao = helper.getDao(ServerInfo.class);
+                        QueryBuilder<ServerInfo, Integer> qb = dao.queryBuilder();
+                        qb.selectRaw("MAX(sort_order) + 1");
+                        GenericRawResults<String[]> r = dao.queryRaw(qb.prepareStatementString());
+                        
+                        int nextSortOrder = 0;
+                        if(r.getResults() != null && r.getResults().size() > 0
+                                && r.getFirstResult() != null && r.getFirstResult()[0] != null)
+                        {
+                            nextSortOrder = Integer.parseInt(r.getFirstResult()[0]);
+                        }
+                        
+                        serverInfo.setSortOrder(nextSortOrder);
+                        dao.create(serverInfo);
+                        
+                        return null;
+                    }
+                });
+                adapter.add(serverInfo);
+                adapter.notifyDataSetChanged();
+            }
+            catch(SQLException e)
+            {
+                Log.e(TAG, "Failed to update server_info", e);
+            }
         }
         
         @Override
@@ -144,8 +246,57 @@ public class ServerlistActivity extends Activity
         @Override
         public void onAdd()
         {
-            // TODO Auto-generated method stub
+            Intent intent = new Intent(getActivity(), ServerInfoActivity.class);
+            startActivityForResult(intent, REQUESTCODE_SERVERINFO_ADD);
+        }
+        
+        @Override
+        public void onEdit(ServerInfo item)
+        {
+            Intent intent = new Intent(getActivity(), ServerInfoActivity.class);
+            intent.putExtra(ServerInfo.Intent.EXTRA, item.clone());
+            startActivityForResult(intent, REQUESTCODE_SERVERINFO_EDIT);
+        }
+        
+        @Override
+        public void onDelete(final ServerInfo item)
+        {
+            ConfirmDialogFragment dialog = new ConfirmDialogFragment()
+                .setTitle(getResources().getString(R.string.dialog_delete_title))
+                .setMessage(getResources().getString(R.string.dialog_delete_title, item.getServerName()))
+                .setOkOnClickListener(new OnClickListener(){
+                    @Override
+                    public void onClick(View v)
+                    {
+                        onConfirmDelete(item);
+                    }
+                });
+            dialog.show(getFragmentManager(), "delete");
+        }
+        
+        public void onConfirmDelete(final ServerInfo item)
+        {
+            final DatabaseHelper helper = new DatabaseHelper(getActivity());
             
+            try
+            {
+                TransactionManager.callInTransaction(helper.getConnectionSource(), new Callable<Void>(){
+                    @Override
+                    public Void call() throws Exception
+                    {
+                        Dao<ServerInfo, Integer> dao = helper.getDao(ServerInfo.class);
+                        dao.delete(item);
+                        
+                        return null;
+                    }
+                });
+                adapter.remove(item);
+                adapter.notifyDataSetChanged();
+            }
+            catch(SQLException e)
+            {
+                Log.e(TAG, "Failed to update server_info", e);
+            }
         }
         
         @Override
@@ -188,7 +339,7 @@ public class ServerlistActivity extends Activity
         @Override
         public void onActivityCreated(Bundle savedInstanceState)
         {
-            ServerlistAdapter adapter = new ServerlistAdapter(getActivity(), loadServerInfoList());
+            adapter = new ServerlistAdapter(getActivity(), loadServerInfoList());
             adapter.setupFor(getListView());
             adapter.setServerlistItemListener(this);
             
@@ -212,9 +363,16 @@ public class ServerlistActivity extends Activity
                         }
                         
                         @Override
-                        public boolean onSingleTapUp(MotionEvent e)
+                        public boolean onSingleTapConfirmed(MotionEvent e)
                         {
-                            return ServerlistAdapter.this.onSingleTapUp(target, e);
+                            return ServerlistAdapter.this.onSingleTapConfirmed(target, e);
+                        }
+                        
+                        @Override
+                        public boolean onDown(MotionEvent e)
+                        {
+                            // ondown should be consumed to catch onSingleTap.
+                            return true;
                         }
                     });
                 }
@@ -346,17 +504,40 @@ public class ServerlistActivity extends Activity
                 LayoutInflater inflater = (LayoutInflater)getContext().getSystemService(LAYOUT_INFLATER_SERVICE);
                 View view = inflater.inflate(R.layout.item_serverlist_add, parent, false);
                 view.setTag(null);
+                view.setOnTouchListener(new GestureEventConverter(view));
                 return view;
             }
             
             protected View getServerView(int position, View convertView,
                     ViewGroup parent)
             {
-                View view = super.getViewBeforeDrag(position, convertView, parent);
+                final View view = super.getViewBeforeDrag(position, convertView, parent);
                 if(view != convertView)
                 {
                     // It's not reasonable to set listener every time.
                     view.setOnTouchListener(new GestureEventConverter(view));
+                    view.findViewById(R.id.editButton).setOnClickListener(new OnClickListener(){
+                        @Override
+                        public void onClick(View v)
+                        {
+                            int position = getPosition(view);
+                            if(position != ListView.INVALID_POSITION)
+                            {
+                                listener.onEdit(getItem(position));
+                            }
+                        }
+                    });
+                    view.findViewById(R.id.deleteButton).setOnClickListener(new OnClickListener(){
+                        @Override
+                        public void onClick(View v)
+                        {
+                            int position = getPosition(view);
+                            if(position != ListView.INVALID_POSITION)
+                            {
+                                listener.onDelete(getItem(position));
+                            }
+                        }
+                    });
                 }
                 view.setTag(position);
                 view.setAlpha(isDragging(position)?0.5f:1.0f);
@@ -410,7 +591,7 @@ public class ServerlistActivity extends Activity
                 super.onSorted(fromPosition, toPosition);
             }
             
-            protected boolean onSingleTapUp(View v, MotionEvent e)
+            protected boolean onSingleTapConfirmed(View v, MotionEvent e)
             {
                 int position = getPosition(v);
                 if(position == ListView.INVALID_POSITION)

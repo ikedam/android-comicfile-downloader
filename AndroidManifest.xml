@@ -22,6 +22,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name="jp.ikedam.android.comicfiledownloader.ServerInfoActivity"
+            android:label="@string/title_activity_server_info" >
+        </activity>
     </application>
 
 </manifest>

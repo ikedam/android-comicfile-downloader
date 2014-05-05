@@ -3,6 +3,7 @@
     android:id="@+id/RelativeLayout1"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:contentDescription="@string/tooltip_server_delete"
     android:orientation="horizontal" >
 
     <LinearLayout
@@ -16,7 +17,7 @@
             android:id="@+id/serverTypeImageView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:contentDescription="@string/servertype_http"
+            android:contentDescription="@string/text_server_type_http"
             android:src="@android:drawable/ic_input_get" />
 
         <TextView
@@ -27,18 +28,25 @@
     </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/linearLayout1"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentRight="true"
-        android:layout_centerVertical="true"
-        android:layout_marginRight="15dp" >
+        android:layout_centerVertical="true" >
 
         <ImageButton
-            android:id="@+id/reorderButton"
+            android:id="@+id/editButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:contentDescription="@string/tooltip_reorder"
-            android:src="@android:drawable/ic_menu_sort_by_size" />
+            android:contentDescription="@string/tooltip_server_edit"
+            android:src="@android:drawable/ic_menu_edit" />
+
+        <ImageButton
+            android:id="@+id/deleteButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:contentDescription="@string/tooltip_server_delete" 
+            android:src="@android:drawable/ic_delete" />
     </LinearLayout>
 
 </RelativeLayout>

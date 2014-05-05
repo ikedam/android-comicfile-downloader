@@ -24,6 +24,8 @@
 
 package jp.ikedam.android.comicfiledownloader.model;
 
+import java.io.Serializable;
+
 import com.j256.ormlite.field.DatabaseField;
 import com.j256.ormlite.table.DatabaseTable;
 
@@ -31,8 +33,29 @@ import com.j256.ormlite.table.DatabaseTable;
  *
  */
 @DatabaseTable(tableName="server_info")
-public class ServerInfo
+public class ServerInfo implements Serializable, Cloneable
 {
+    private static final long serialVersionUID = -705639252838934861L;
+    
+    public static class Intent
+    {
+        public static final String EXTRA = ServerInfo.class.getName();
+        public static final int RESPONSECODE_OK = 1000;
+    }
+    
+    @Override
+    public ServerInfo clone()
+    {
+        try
+        {
+            return (ServerInfo)super.clone();
+        }
+        catch(CloneNotSupportedException e)
+        {
+            return null;
+        }
+    }
+    
     @DatabaseField(generatedId=true)
     private int id = -1;
     
@@ -68,6 +91,22 @@ public class ServerInfo
     public String getServerName()
     {
         return serverName;
+    }
+    
+    /**
+     * @return the serverType
+     */
+    public int getServerType()
+    {
+        return serverType;
+    }
+    
+    /**
+     * @param serverType the serverType to set
+     */
+    public void setServerType(int serverType)
+    {
+        this.serverType = serverType;
     }
     
     /**
@@ -110,9 +149,55 @@ public class ServerInfo
         this.sortOrder = sortOrder;
     }
     
+    /**
+     * @return the username
+     */
+    public String getUsername()
+    {
+        return username;
+    }
+    
+    /**
+     * @param username the username to set
+     */
+    public void setUsername(String username)
+    {
+        this.username = username;
+    }
+    
+    /**
+     * @return the password
+     */
+    public String getPassword()
+    {
+        return password;
+    }
+    
+    /**
+     * @param password the password to set
+     */
+    public void setPassword(String password)
+    {
+        this.password = password;
+    }
+    
     @Override
     public String toString()
     {
         return getServerName();
+    }
+    
+    @Override
+    public boolean equals(Object o)
+    {
+        if(o == null || !(o instanceof ServerInfo))
+        {
+            return false;
+        }
+        if(getId() < 0)
+        {
+            return false;
+        }
+        return getId() == ((ServerInfo)o).getId();
     }
 }

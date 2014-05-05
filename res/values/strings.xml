@@ -3,26 +3,48 @@
 
     <string name="app_name">Comicfile Downloader</string>
     <string name="action_settings">Settings</string>
+    <string name="title_activity_server_info">ServerInfoActivity</string>
+    
     <string-array name="testServerNameList">
-        <item >Server1</item>
-        <item >Server2</item>
-        <item >Server3</item>
-        <item >Server4</item>
-        <item >Server5</item>
-        <item >Server6</item>
-        <item >Server7</item>
-        <item >Server8</item>
-        <item >Server9</item>
-        <item >Server10</item>
-        <item >Server11</item>
-        <item >Server12</item>
-        <item >Server13</item>
-        <item >Server14</item>
-        <item >Server15</item>
+        <item>Server1</item>
+        <item>Server2</item>
+        <item>Server3</item>
+        <item>Server4</item>
+        <item>Server5</item>
+        <item>Server6</item>
+        <item>Server7</item>
+        <item>Server8</item>
+        <item>Server9</item>
+        <item>Server10</item>
+        <item>Server11</item>
+        <item>Server12</item>
+        <item>Server13</item>
+        <item>Server14</item>
+        <item>Server15</item>
     </string-array>
-    <string name="servertype_http">HTTP Server</string>
-    <string name="tooltip_reorder">Reorder</string>
-    <string name="text_add">Add</string>
-    <string name="tooptip_add">Add a new server</string>
+
+    <string name="text_server_add">Add</string>
+    <string name="text_server_update">Update</string>
+    <string name="text_server_name">Server Name</string>
+    <string name="text_server_type_http">HTTP Server</string>
+    <string name="text_server_uri">Server URI</string>
+    <string name="text_server_type">Server Type</string>
+    <string name="text_auhentication">Require username and password</string>
+    <string name="text_username">Username</string>
+    <string name="text_password">Password</string>
+    <string name="tooltip_server_add">Add a new server</string>
+    <string name="tooltip_server_delete">Delete this server</string>
+    <string name="tooltip_server_edit">Configure this server</string>
+    <string name="tooltip_server_name">Server name used for displaying</string>
+    <string name="tooltip_server_uri">URI of the server to connect</string>
+    <string name="tooltip_server_username">User name for basic authentication</string>
+    <string name="tooltip_server_password">Password for basic authentication</string>
+    <string name="error_required">Required</string>
+    <string name="error_invalid_uri">Invalid URI</string>
+    <string name="error_invalid_schema">Invalid schema: schema can be http or https</string>
+    <string name="dialog_delete_title">Delete</string>
+    <string name="dialog_delete_message">Really delete {0}?</string>
+    <string name="dialog_ok">OK</string>
+    <string name="dialog_cancel">Cancel</string>
 
 </resources>
