@@ -7,6 +7,7 @@
     <uses-sdk
         android:minSdkVersion="14"
         android:targetSdkVersion="19" />
+    <uses-permission android:name="android.permission.INTERNET"/>
 
     <application
         android:allowBackup="true"
@@ -25,6 +26,13 @@
         <activity
             android:name="jp.ikedam.android.comicfiledownloader.ServerInfoActivity"
             android:label="@string/title_activity_server_info" >
+        </activity>
+        <activity
+            android:name="jp.ikedam.android.comicfiledownloader.DownloadItemListActivity"
+            android:label="@string/title_activity_download_item_list" >
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="jp.ikedam.android.comicfiledownloader.ServerlistActivity" />
         </activity>
     </application>
 

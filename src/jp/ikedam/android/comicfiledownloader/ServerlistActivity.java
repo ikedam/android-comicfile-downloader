@@ -240,7 +240,9 @@ public class ServerlistActivity extends Activity
         @Override
         public void onSelected(ServerInfo item)
         {
-            // TODO Auto-generated method stub
+            Intent intent = new Intent(getActivity(), DownloadItemListActivity.class);
+            intent.putExtra(ServerInfo.Intent.EXTRA, item);
+            startActivity(intent);
         }
         
         @Override
@@ -263,7 +265,7 @@ public class ServerlistActivity extends Activity
         {
             ConfirmDialogFragment dialog = new ConfirmDialogFragment()
                 .setTitle(getResources().getString(R.string.dialog_delete_title))
-                .setMessage(getResources().getString(R.string.dialog_delete_title, item.getServerName()))
+                .setMessage(getResources().getString(R.string.dialog_delete_message, item.getServerName()))
                 .setOkOnClickListener(new OnClickListener(){
                     @Override
                     public void onClick(View v)
