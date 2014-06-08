@@ -8,10 +8,19 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.PasswordAuthentication;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
+import jp.ikedam.android.comicfiledownloader.model.DownloadItem;
 import jp.ikedam.android.comicfiledownloader.model.ServerInfo;
 import android.app.Activity;
-import android.app.Fragment;
+import android.app.ListFragment;
+import android.content.Context;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -22,6 +31,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.View.OnClickListener;
+import android.widget.BaseAdapter;
+import android.widget.TextView;
 
 public class DownloadItemListActivity extends Activity
 {
@@ -36,7 +47,7 @@ public class DownloadItemListActivity extends Activity
         if(savedInstanceState == null)
         {
             getFragmentManager().beginTransaction()
-                    .add(R.id.container, new PlaceholderFragment()).commit();
+                    .add(R.id.container, new DownloadItemListFragment()).commit();
         }
     }
     
@@ -66,11 +77,132 @@ public class DownloadItemListActivity extends Activity
     /**
      * A placeholder fragment containing a simple view.
      */
-    public static class PlaceholderFragment extends Fragment
+    public class DownloadItemListFragment extends ListFragment
     {
+        protected class DownloadItemAdapter extends BaseAdapter
+        {
+            private final List<DownloadItem> downloadItemList = new ArrayList<DownloadItem>();
+            private final LayoutInflater mInflater = (LayoutInflater)getActivity().getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+            
+            void clear()
+            {
+                downloadItemList.clear();
+            }
+            
+            boolean add(DownloadItem item)
+            {
+                return downloadItemList.add(item);
+            }
+            
+            @Override
+            public int getCount()
+            {
+                // "Back" link and items.
+                return downloadItemList.size() + 1;
+            }
+            
+            @Override
+            public DownloadItem getItem(int position)
+            {
+                if(position == 0)
+                {
+                    return null;
+                }
+                return downloadItemList.get(position - 1);
+            }
+            
+            @Override
+            public long getItemId(int position)
+            {
+                return position;
+            }
+            
+            @Override
+            public int getViewTypeCount()
+            {
+                return 4;
+            }
+            
+            @Override
+            public int getItemViewType(int position)
+            {
+                return getItemViewType(getItem(position));
+            }
+            
+            protected int getItemViewType(DownloadItem item)
+            {
+                if(item == null)
+                {
+                    // item_downloaditem_back
+                    return 0;
+                }
+                
+                if(TextUtils.isEmpty(item.getAuthor()))
+                {
+                    // item_downloaditem_wo_author
+                    return 1;
+                }
+                
+                // item_downloaditem
+                return 2;
+            }
+            
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent)
+            {
+                DownloadItem item = getItem(position);
+                int type = getItemViewType(item);
+                switch(type)
+                {
+                case 0:
+                    // item_downloaditem_back
+                    return getViewForBack(item, convertView, parent);
+                case 1:
+                    // item_downloaditem_wo_authr
+                    return getViewForItemWithoutAuthor(item, convertView, parent);
+                case 2:
+                    // item_downloaditem
+                    return getViewForItem(item, convertView, parent);
+                }
+                return null;
+            }
+            
+            protected View getViewForBack(DownloadItem item, View convertView, ViewGroup parent)
+            {
+                if(convertView == null)
+                {
+                    convertView = mInflater.inflate(R.layout.item_downloaditem_back, parent, false);
+                }
+                return convertView;
+            }
+            
+            protected View getViewForItemWithoutAuthor(DownloadItem item,
+                    View convertView, ViewGroup parent)
+            {
+                if(convertView == null)
+                {
+                    convertView = mInflater.inflate(R.layout.item_downloaditem_wo_author, parent, false);
+                }
+                ((TextView)convertView.findViewById(R.id.itemNameView)).setText(item.getTitle());
+                return convertView;
+            }
+            
+            protected View getViewForItem(DownloadItem item, View convertView,
+                    ViewGroup parent)
+            {
+                if(convertView == null)
+                {
+                    convertView = mInflater.inflate(R.layout.item_downloaditem, parent, false);
+                }
+                ((TextView)convertView.findViewById(R.id.itemNameView)).setText(item.getTitle());
+                ((TextView)convertView.findViewById(R.id.authorView)).setText(item.getAuthor());
+                return convertView;
+            }
+        }
         protected class RetrieveItemListTask extends AsyncTask<Void, Integer, String>
         {
             private ProgressDialogFragment progressDialog;
+            private URL currentUrl;
             
             protected void showError(int id, Object... params)
             {
@@ -122,7 +254,8 @@ public class DownloadItemListActivity extends Activity
                             }
                         });
                     }
-                    urlConnection = (HttpURLConnection)new URL(serverInfo.getServerUri()).openConnection();
+                    currentUrl = new URL(serverInfo.getServerUri());
+                    urlConnection = (HttpURLConnection)currentUrl.openConnection();
                     urlConnection.setConnectTimeout(5000);
                     urlConnection.setReadTimeout(5000);
                     
@@ -179,10 +312,53 @@ public class DownloadItemListActivity extends Activity
             protected void onPostExecute(String result)
             {
                 progressDialog.dismiss();
-                if(result != null)
+                if(result == null)
                 {
-                    Log.d("TEST", result);
+                    // Error handling would be already done in doInBackground.
+                    return;
                 }
+                Document doc = Jsoup.parse(result);
+                
+                adapter.clear();
+                
+                // http://comicglass.net/mediaserver_index/
+                // * Treats <a> tags as items.
+                Elements links = doc.select("a[href]");
+                for(Element link: links)
+                {
+                    String title = null;
+                    if(link.hasAttr("booktitle"))
+                    {
+                        title = link.attr("booktitle");
+                    }
+                    else
+                    {
+                        title = link.text();
+                    }
+                    
+                    // accepts "[author] title" format.
+                    DownloadItem item = DownloadItem.newInstanceFromText(title);
+                    
+                    try
+                    {
+                        URL url = new URL(currentUrl, link.attr("href"));
+                        item.setUri(url.toExternalForm());
+                    }
+                    catch(MalformedURLException e)
+                    {
+                        Log.w(TAG, String.format("Ignored invalid link: %s", link.attr("href")), e);
+                        continue;
+                    }
+                    
+                    if(link.hasAttr("bookfile") && "true".equalsIgnoreCase(link.attr("bookfile")))
+                    {
+                        item.setType(DownloadItem.DownloadItemType.File);
+                    }
+                    
+                    adapter.add(item);
+                }
+                
+                adapter.notifyDataSetChanged();
             }
             
             @Override
@@ -194,9 +370,19 @@ public class DownloadItemListActivity extends Activity
         
         private ServerInfo serverInfo;
         private RetrieveItemListTask retrieveTask;
+        private DownloadItemAdapter adapter;
         
-        public PlaceholderFragment()
+        public DownloadItemListFragment()
         {
+        }
+        
+        @Override
+        public void onActivityCreated(Bundle savedInstanceState)
+        {
+            adapter = new DownloadItemAdapter();
+            getListView().setAdapter(adapter);
+            
+            super.onActivityCreated(savedInstanceState);
         }
         
         @Override

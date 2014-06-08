@@ -33,6 +33,8 @@
     <string name="text_auhentication">Require username and password</string>
     <string name="text_username">Username</string>
     <string name="text_password">Password</string>
+    <string name="text_download_back">Back</string>
+    <string name="text_dowanload_type_file">A comic file</string>
     <string name="tooltip_server_add">Add a new server</string>
     <string name="tooltip_server_delete">Delete this server</string>
     <string name="tooltip_server_edit">Configure this server</string>
@@ -40,6 +42,9 @@
     <string name="tooltip_server_uri">URI of the server to connect</string>
     <string name="tooltip_server_username">User name for basic authentication</string>
     <string name="tooltip_server_password">Password for basic authentication</string>
+    <string name="tooltip_download_back">Back to the parent folder</string>
+    <string name="tooltip_download_file">A comic file</string>
+    <string name="tooltip_dowanload_download_file">Dowanload the comic file to local</string>
     <string name="error_required">Required</string>
     <string name="error_invalid_uri">Invalid URI</string>
     <string name="error_invalid_schema">Invalid schema: schema can be http or https</string>
